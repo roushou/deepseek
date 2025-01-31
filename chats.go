@@ -12,8 +12,8 @@ type ChatsClient struct {
 	httpClient *http_client.Client
 }
 
-func (c *ChatsClient) CreateCompletion(payload ChatCompletionRequest) (*ChatCompletionResponse, error) {
-	body, err := json.Marshal(payload)
+func (c *ChatsClient) CreateCompletion(args ChatCompletionArgs) (*ChatCompletionResponse, error) {
+	body, err := json.Marshal(args)
 	if err != nil {
 		return nil, err
 	}
@@ -29,8 +29,8 @@ func (c *ChatsClient) CreateCompletion(payload ChatCompletionRequest) (*ChatComp
 }
 
 // NewChatCompletionRequest creates a new chat completion request with default values.
-func NewChatCompletionRequest(model ModelID) ChatCompletionRequest {
-	return ChatCompletionRequest{
+func NewChatCompletionRequest(model ModelID) ChatCompletionArgs {
+	return ChatCompletionArgs{
 		Model:            model,
 		Messages:         []Message{},
 		FrequencyPenalty: 0,
@@ -49,7 +49,7 @@ func NewChatCompletionRequest(model ModelID) ChatCompletionRequest {
 	}
 }
 
-type ChatCompletionRequest struct {
+type ChatCompletionArgs struct {
 	// Model is the ID of the model to use.
 	Model ModelID `json:"model"`
 

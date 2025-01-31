@@ -16,7 +16,7 @@ func (c *BalancesClient) GetUserBalance() (*UserBalanceResponse, error) {
 		return nil, err
 	}
 	var balance UserBalanceResponse
-	err = c.httpClient.Do(req, &balance)
+	_, err = c.httpClient.Do(req, &balance)
 	if err != nil {
 		return nil, err
 	}

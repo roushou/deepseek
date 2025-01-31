@@ -24,7 +24,7 @@ func (c *ChatsClient) CreateCompletion(args ChatCompletionArgs) (*ChatCompletion
 	}
 
 	var completion ChatCompletionResponse
-	err = c.httpClient.Do(req, &completion)
+	_, err = c.httpClient.Do(req, &completion)
 	return &completion, err
 }
 

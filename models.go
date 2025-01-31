@@ -38,7 +38,7 @@ func (c *ModelsClient) ListModels() (*ModelsList, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = c.httpClient.Do(req, &models)
+	_, err = c.httpClient.Do(req, &models)
 	return &models, err
 }
 
@@ -50,6 +50,6 @@ func (c *ModelsClient) GetModel(modelID string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = c.httpClient.Do(req, &model)
+	_, err = c.httpClient.Do(req, &model)
 	return &model, err
 }

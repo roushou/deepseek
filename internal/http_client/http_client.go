@@ -59,39 +59,44 @@ func (c *Client) NewRequest(method, path string, body io.Reader) (*http.Request,
 	return req, err
 }
 
-func (c *Client) Do(req *http.Request, out interface{}) error {
+func (c *Client) Do(req *http.Request, out interface{}) (*http.Response, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	switch resp.StatusCode {
 	case http.StatusOK: // 200
 		if out != nil {
-			return json.NewDecoder(bytes.NewReader(body)).Decode(out)
+			err := json.NewDecoder(bytes.NewReader(body)).Decode(out)
+			if err != nil {
+				return nil, err
+			}
+			return resp, nil
 		}
-		return nil
 	case http.StatusBadRequest: // 400
-		return fmt.Errorf("%w: %s", ErrInvalidFormat, string(body))
+		return nil, fmt.Errorf("%w: %s", ErrInvalidFormat, string(body))
 	case http.StatusUnauthorized: // 401
-		return fmt.Errorf("%w: %s", ErrAuthenticationFailed, string(body))
+		return nil, fmt.Errorf("%w: %s", ErrAuthenticationFailed, string(body))
 	case http.StatusPaymentRequired: // 402
-		return fmt.Errorf("%w: %s", ErrInsufficientBalance, string(body))
+		return nil, fmt.Errorf("%w: %s", ErrInsufficientBalance, string(body))
 	case http.StatusUnprocessableEntity: // 422
-		return fmt.Errorf("%w: %s", ErrInvalidParameters, string(body))
+		return nil, fmt.Errorf("%w: %s", ErrInvalidParameters, string(body))
 	case http.StatusTooManyRequests: // 429
-		return fmt.Errorf("%w: %s", ErrRateLimitExceeded, string(body))
+		return nil, fmt.Errorf("%w: %s", ErrRateLimitExceeded, string(body))
 	case http.StatusInternalServerError: // 500
-		return fmt.Errorf("%w: %s", ErrServer, string(body))
+		return nil, fmt.Errorf("%w: %s", ErrServer, string(body))
 	case http.StatusServiceUnavailable: // 503
-		return fmt.Errorf("%w: %s", ErrServiceUnavailable, string(body))
+		return nil, fmt.Errorf("%w: %s", ErrServiceUnavailable, string(body))
 	default:
-		return fmt.Errorf("unexpected HTTP status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("unexpected HTTP status %d: %s", resp.StatusCode, string(body))
 	}
+
+	return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
 }

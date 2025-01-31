@@ -64,6 +64,11 @@ func (c *Client) Do(req *http.Request, out interface{}) (*http.Response, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	if out == nil {
+		return resp, nil
+	}
+
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)

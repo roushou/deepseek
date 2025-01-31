@@ -10,6 +10,8 @@ go get github.com/roushou/deepseek
 
 ## Usage
 
+See [examples](./examples) for more.
+
 ```go
 package main
 

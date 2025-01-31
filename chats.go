@@ -2,10 +2,12 @@ package deepseek
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/roushou/deepseek/internal/http_client"
+	"github.com/roushou/deepseek/internal/ssestream"
 )
 
 type ChatsClient struct {
@@ -26,6 +28,68 @@ func (c *ChatsClient) CreateCompletion(args ChatCompletionArgs) (*ChatCompletion
 	var completion ChatCompletionResponse
 	_, err = c.httpClient.Do(req, &completion)
 	return &completion, err
+}
+
+func (c *ChatsClient) CreateStreamCompletion(ctx context.Context, args ChatCompletionArgs) (<-chan *StreamCompletionResponse, error) {
+	args.Stream = true
+
+	body, err := json.Marshal(args)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := c.httpClient.NewRequest(http.MethodPost, "/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "text/event-stream")
+
+	resp, err := c.httpClient.Do(req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	streamChan := make(chan *StreamCompletionResponse)
+
+	go func() {
+		defer close(streamChan)
+		defer resp.Body.Close()
+
+		decoder := ssestream.NewDecoder(resp)
+		if decoder == nil {
+			streamChan <- nil
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if !decoder.Next() {
+					// No more events to process
+					return
+				}
+
+				event := decoder.Event()
+				if event.Type == "" {
+					var chunk StreamCompletionResponse
+					err := json.Unmarshal(event.Data, &chunk)
+					if err != nil {
+						streamChan <- nil
+						return
+					}
+					select {
+					case streamChan <- &chunk:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	return streamChan, nil
 }
 
 // NewChatCompletionRequest creates a new chat completion request with default values.
@@ -183,8 +247,40 @@ type ChatCompletionResponse struct {
 	// Usage is the usage statistics for the completion request.
 	Usage ChatCompletionUsage `json:"usage"`
 
-	// Object describes the type of this response object. Always "chat.completion" in this case.
+	// Object describes the type of this response object i.e. "chat.completion" for a simple completion and "chat.completion.chunk" for a streaming completion.
 	Object string `json:"object"`
+}
+
+type StreamCompletionResponse struct {
+	// ID is a unique identifier for the chat completion.
+	ID string `json:"id"`
+
+	// Model indicates which model was used for this response.
+	Model ModelID `json:"model"`
+
+	// Choices contains one or more possible responses from the model.
+	Choices []StreamCompletionChoice `json:"choices"`
+
+	// Created is the Unix timestamp (in seconds) of when the response was generated.
+	Created int64 `json:"created"`
+
+	// SystemFingerprint represents the backend configuration that the model runs with.
+	SystemFingerprint string `json:"system_fingerprint"`
+
+	// Object describes the type of this response object i.e. "chat.completion" for a simple completion and "chat.completion.chunk" for a streaming completion.
+	Object string `json:"object"`
+}
+
+type StreamCompletionChoice struct {
+	Index        int64                      `json:"index"`
+	Delta        StreamDelta                `json:"delta"`
+	FinishReason ChatCompletionFinishReason `json:"finish_reason"`
+}
+
+type StreamDelta struct {
+	Content          string `json:"content"`
+	ReasoningContent string `json:"reasoning_content"`
+	Role             Role   `json:"role"`
 }
 
 type ChatCompletionChoice struct {

@@ -19,7 +19,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	stream, err := client.Chats.CreateStreamCompletion(ctx, deepseek.ChatCompletionArgs{
+	stream, err := client.Chats.CreateStreamCompletion(ctx, deepseek.StreamCompletionArgs{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.Message{
 			{

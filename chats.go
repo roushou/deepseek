@@ -14,7 +14,7 @@ type ChatsClient struct {
 	httpClient *http_client.Client
 }
 
-func (c *ChatsClient) CreateCompletion(args ChatCompletionArgs) (*ChatCompletionResponse, error) {
+func (c *ChatsClient) CreateCompletion(args CompletionArgs) (*CompletionResponse, error) {
 	body, err := json.Marshal(args)
 	if err != nil {
 		return nil, err
@@ -25,12 +25,13 @@ func (c *ChatsClient) CreateCompletion(args ChatCompletionArgs) (*ChatCompletion
 		return nil, err
 	}
 
-	var completion ChatCompletionResponse
+	var completion CompletionResponse
 	_, err = c.httpClient.Do(req, &completion)
 	return &completion, err
 }
 
-func (c *ChatsClient) CreateStreamCompletion(ctx context.Context, args ChatCompletionArgs) (<-chan *StreamCompletionResponse, error) {
+// CreateStreamCompletion streams chat completion using Server-Sent Events (SSE).
+func (c *ChatsClient) CreateStreamCompletion(ctx context.Context, args StreamCompletionArgs) (<-chan *StreamCompletionResponse, error) {
 	args.Stream = true
 
 	body, err := json.Marshal(args)
@@ -92,9 +93,9 @@ func (c *ChatsClient) CreateStreamCompletion(ctx context.Context, args ChatCompl
 	return streamChan, nil
 }
 
-// NewChatCompletionRequest creates a new chat completion request with default values.
-func NewChatCompletionRequest(model ModelID) ChatCompletionArgs {
-	return ChatCompletionArgs{
+// NewCompletionRequest creates a new chat completion request with default values.
+func NewCompletionRequest(model ModelID) CompletionArgs {
+	return CompletionArgs{
 		Model:            model,
 		Messages:         []Message{},
 		FrequencyPenalty: 0,
@@ -102,8 +103,6 @@ func NewChatCompletionRequest(model ModelID) ChatCompletionArgs {
 		PresencePenalty:  0,
 		ResponseFormat:   &ResponseFormat{},
 		Stop:             []string{},
-		Stream:           false,
-		StreamOptions:    &StreamOptions{},
 		Temperature:      1,
 		TopP:             1,
 		Tools:            []Tool{},
@@ -113,7 +112,81 @@ func NewChatCompletionRequest(model ModelID) ChatCompletionArgs {
 	}
 }
 
-type ChatCompletionArgs struct {
+// NewCompletionRequest creates a new chat completion request with default values.
+func NewStreamCompletionRequest(model ModelID) StreamCompletionArgs {
+	return StreamCompletionArgs{
+		Model:            model,
+		Messages:         []Message{},
+		FrequencyPenalty: 0,
+		MaxTokens:        4096,
+		PresencePenalty:  0,
+		ResponseFormat:   &ResponseFormat{},
+		Stream:           true,
+		StreamOptions:    &StreamOptions{},
+		Stop:             []string{},
+		Temperature:      1,
+		TopP:             1,
+		Tools:            []Tool{},
+		ToolChoice:       "",
+		Logprobs:         false,
+		TopLogprobs:      0,
+	}
+}
+
+type CompletionArgs struct {
+	// Model is the ID of the model to use.
+	Model ModelID `json:"model"`
+
+	// Messages contains the conversation history or context for the chat.
+	Messages []Message `json:"messages"`
+
+	// FrequencyPenalty adjusts the likelihood of repeating tokens based on their frequency in the text.
+	//
+	// Range: -2.0 to 2.0. Default: 0. Higher values decrease repetition.
+	FrequencyPenalty float64 `json:"frequency_penalty,omitempty"`
+
+	// MaxTokens is the maximum number of tokens that can be generated in the chat completion. The total length of input tokens and generated tokens is limited by the model's context length.
+	//
+	// Integer between 1 and 8192. Defaults to 4096.
+	MaxTokens int `json:"max_tokens,omitempty"`
+
+	// PresencePenalty influences the model to introduce new topics by penalizing tokens based on their presence in the text.
+	//
+	// Range: -2.0 to 2.0. Default: 0. Higher values encourage new topics.
+	PresencePenalty float64 `json:"presence_penalty,omitempty"`
+
+	// ResponseFormat defines the format of the response (e.g., text or JSON).
+	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
+
+	// Stop provides sequences at which to stop generating further tokens. Up to 16 sequences allowed.
+	Stop []string `json:"stop,omitempty"`
+
+	// Temperature controls the randomness of the output; higher values make it more creative, lower values more deterministic.
+	//
+	// Range: 0 to 2. Default: 1.
+	Temperature float64 `json:"temperature,omitempty"`
+
+	// TopP implements nucleus sampling where only tokens with cumulative probability up to this value are considered.
+	//
+	// For example, 0.1 means only the tokens comprising the top 10% probability mass are considered.
+	TopP float64 `json:"top_p,omitempty"`
+
+	// Tools lists functions that the model can call, limited to 128.
+	Tools []Tool `json:"tools,omitempty"`
+
+	// ToolChoice specifies which tool to use if tools are provided.
+	ToolChoice string `json:"tool_choice,omitempty"`
+
+	// Logprobs indicates if log probabilities should be returned for each token.
+	Logprobs bool `json:"logprobs,omitempty"`
+
+	// TopLogprobs specifies how many most likely tokens to return with their log probabilities; requires Logprobs to be true.
+	//
+	// Range: 0 to 20.
+	TopLogprobs float64 `json:"top_logprobs,omitempty"`
+}
+
+type StreamCompletionArgs struct {
 	// Model is the ID of the model to use.
 	Model ModelID `json:"model"`
 
@@ -228,7 +301,7 @@ type StreamOptions struct {
 	IncludeUsage bool `json:"include_usage,omitempty"`
 }
 
-type ChatCompletionResponse struct {
+type CompletionResponse struct {
 	// ID is a unique identifier for the chat completion.
 	ID string `json:"id"`
 
@@ -236,7 +309,7 @@ type ChatCompletionResponse struct {
 	Model ModelID `json:"model"`
 
 	// Choices contains one or more possible responses from the model.
-	Choices []ChatCompletionChoice `json:"choices"`
+	Choices []CompletionChoice `json:"choices"`
 
 	// Created is the Unix timestamp (in seconds) of when the response was generated.
 	Created int64 `json:"created"`
@@ -245,7 +318,7 @@ type ChatCompletionResponse struct {
 	SystemFingerprint string `json:"system_fingerprint"`
 
 	// Usage is the usage statistics for the completion request.
-	Usage ChatCompletionUsage `json:"usage"`
+	Usage CompletionUsage `json:"usage"`
 
 	// Object describes the type of this response object i.e. "chat.completion" for a simple completion and "chat.completion.chunk" for a streaming completion.
 	Object string `json:"object"`
@@ -272,9 +345,9 @@ type StreamCompletionResponse struct {
 }
 
 type StreamCompletionChoice struct {
-	Index        int64                      `json:"index"`
-	Delta        StreamDelta                `json:"delta"`
-	FinishReason ChatCompletionFinishReason `json:"finish_reason"`
+	Index        int64                  `json:"index"`
+	Delta        StreamDelta            `json:"delta"`
+	FinishReason CompletionFinishReason `json:"finish_reason"`
 }
 
 type StreamDelta struct {
@@ -283,49 +356,49 @@ type StreamDelta struct {
 	Role             Role   `json:"role"`
 }
 
-type ChatCompletionChoice struct {
-	Index        int64                      `json:"index"`
-	Message      Message                    `json:"message"`
-	FinishReason ChatCompletionFinishReason `json:"finish_reason"`
+type CompletionChoice struct {
+	Index        int64                  `json:"index"`
+	Message      Message                `json:"message"`
+	FinishReason CompletionFinishReason `json:"finish_reason"`
 }
 
-type ChatCompletionMessage struct {
-	Content          string                   `json:"content"`
-	ReasoningContent string                   `json:"reasoning_content"`
-	Role             string                   `json:"role"`
-	ToolCalls        []ChatCompletionToolCall `json:"tool_calls"`
+type CompletionMessage struct {
+	Content          string               `json:"content"`
+	ReasoningContent string               `json:"reasoning_content"`
+	Role             string               `json:"role"`
+	ToolCalls        []CompletionToolCall `json:"tool_calls"`
 }
 
-type ChatCompletionToolCall struct {
-	ID       string                         `json:"id"`
-	Type     ToolType                       `json:"type"`
-	Function ChatCompletionToolCallFunction `json:"function"`
+type CompletionToolCall struct {
+	ID       string                     `json:"id"`
+	Type     ToolType                   `json:"type"`
+	Function CompletionToolCallFunction `json:"function"`
 }
 
-type ChatCompletionToolCallFunction struct {
+type CompletionToolCallFunction struct {
 	Name      string `json:"name"`
 	Arguments string `json:"arguments"`
 }
 
-type ChatCompletionFinishReason string
+type CompletionFinishReason string
 
 const (
-	CompletionFinishReasonStop                       ChatCompletionFinishReason = "stop"
-	CompletionFinishReasonLength                     ChatCompletionFinishReason = "length"
-	CompletionFinishReasonContentFilter              ChatCompletionFinishReason = "content_filter"
-	CompletionFinishReasonToolCalls                  ChatCompletionFinishReason = "tool_calls"
-	CompletionFinishReasonInsufficientSystemResource ChatCompletionFinishReason = "insufficient_system_resource"
+	CompletionFinishReasonStop                       CompletionFinishReason = "stop"
+	CompletionFinishReasonLength                     CompletionFinishReason = "length"
+	CompletionFinishReasonContentFilter              CompletionFinishReason = "content_filter"
+	CompletionFinishReasonToolCalls                  CompletionFinishReason = "tool_calls"
+	CompletionFinishReasonInsufficientSystemResource CompletionFinishReason = "insufficient_system_resource"
 )
 
-type ChatCompletionUsage struct {
-	CompletionTokens        int64                           `json:"completion_tokens"`
-	PromptTokens            int64                           `json:"prompt_tokens"`
-	PromptCacheHitTokens    int64                           `json:"prompt_cache_hit_tokens"`
-	PromptCacheMissTokens   int64                           `json:"prompt_cache_miss_tokens"`
-	TotalTokens             int64                           `json:"total_tokens"`
-	CompletionTokensDetails ChatCompletionUsageTokenDetails `json:"completion_tokens_details"`
+type CompletionUsage struct {
+	CompletionTokens        int64                       `json:"completion_tokens"`
+	PromptTokens            int64                       `json:"prompt_tokens"`
+	PromptCacheHitTokens    int64                       `json:"prompt_cache_hit_tokens"`
+	PromptCacheMissTokens   int64                       `json:"prompt_cache_miss_tokens"`
+	TotalTokens             int64                       `json:"total_tokens"`
+	CompletionTokensDetails CompletionUsageTokenDetails `json:"completion_tokens_details"`
 }
 
-type ChatCompletionUsageTokenDetails struct {
+type CompletionUsageTokenDetails struct {
 	ReasoningTokens int64 `json:"reasoning_tokens"`
 }

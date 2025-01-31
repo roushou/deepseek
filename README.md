@@ -29,7 +29,7 @@ func main() {
 		log.Fatalf("failed to create client: %v", err)
 	}
 
-	completion, err := client.Chats.CreateCompletion(deepseek.ChatCompletionRequest{
+	completion, err := client.Chats.CreateCompletion(deepseek.CompletionArgs{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.Message{
 			{

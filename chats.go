@@ -31,66 +31,26 @@ func (c *ChatsClient) CreateCompletion(args CompletionArgs) (*CompletionResponse
 }
 
 // CreateStreamCompletion streams chat completion using Server-Sent Events (SSE).
-func (c *ChatsClient) CreateStreamCompletion(ctx context.Context, args StreamCompletionArgs) (<-chan *StreamCompletionResponse, error) {
+func (c *ChatsClient) CreateStreamCompletion(ctx context.Context, args StreamCompletionArgs) *ssestream.Stream[StreamCompletionChunk] {
 	args.Stream = true
 
 	body, err := json.Marshal(args)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	req, err := c.httpClient.NewRequest(http.MethodPost, "/chat/completions", bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	req.Header.Set("Accept", "text/event-stream")
 
 	resp, err := c.httpClient.Do(req, nil)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
-	streamChan := make(chan *StreamCompletionResponse)
-
-	go func() {
-		defer close(streamChan)
-		defer resp.Body.Close()
-
-		decoder := ssestream.NewDecoder(resp)
-		if decoder == nil {
-			streamChan <- nil
-			return
-		}
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				if !decoder.Next() {
-					// No more events to process
-					return
-				}
-
-				event := decoder.Event()
-				if event.Type == "" {
-					var chunk StreamCompletionResponse
-					err := json.Unmarshal(event.Data, &chunk)
-					if err != nil {
-						streamChan <- nil
-						return
-					}
-					select {
-					case streamChan <- &chunk:
-					case <-ctx.Done():
-						return
-					}
-				}
-			}
-		}
-	}()
-
-	return streamChan, nil
+	return ssestream.NewStream[StreamCompletionChunk](ssestream.NewDecoder(resp), nil)
 }
 
 // NewCompletionRequest creates a new chat completion request with default values.
@@ -324,7 +284,7 @@ type CompletionResponse struct {
 	Object string `json:"object"`
 }
 
-type StreamCompletionResponse struct {
+type StreamCompletionChunk struct {
 	// ID is a unique identifier for the chat completion.
 	ID string `json:"id"`
 

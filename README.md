@@ -16,9 +16,11 @@ See [examples](./examples) for more.
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/roushou/deepseek"
 )
@@ -29,7 +31,10 @@ func main() {
 		log.Fatalf("failed to create client: %v", err)
 	}
 
-	completion, err := client.Chats.CreateCompletion(deepseek.CompletionArgs{
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	stream := client.Chats.CreateStreamCompletion(ctx, deepseek.StreamCompletionArgs{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.Message{
 			{
@@ -38,15 +43,14 @@ func main() {
 			},
 			{
 				Role:    deepseek.UserRole,
-				Content: "Hello World",
+				Content: "Explain Fermat's last theorem",
 			},
 		},
 	})
-	if err != nil {
-		log.Fatalf("failed to create completion: %v", err)
-	}
 
-	fmt.Println(completion)
+	for stream.Next() {
+		fmt.Println(stream.Current().Choices[0].Delta.Content)
+	}
 }
 ```
 

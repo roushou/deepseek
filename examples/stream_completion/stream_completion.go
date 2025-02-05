@@ -19,7 +19,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	stream, err := client.Chats.CreateStreamCompletion(ctx, deepseek.StreamCompletionArgs{
+	stream := client.Chats.CreateStreamCompletion(ctx, deepseek.StreamCompletionArgs{
 		Model: deepseek.DeepSeekChat,
 		Messages: []deepseek.Message{
 			{
@@ -32,16 +32,8 @@ func main() {
 			},
 		},
 	})
-	if err != nil {
-		log.Fatalf("failed to create stream completion: %v", err)
-	}
 
-	for completion := range stream {
-		if completion == nil {
-			fmt.Println("Received error or end of stream")
-			break
-		}
-
-		fmt.Println(completion.Choices[0].Delta.Content)
+	for stream.Next() {
+		fmt.Println(stream.Current().Choices[0].Delta.Content)
 	}
 }

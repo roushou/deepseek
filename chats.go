@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/roushou/deepseek/internal/http_client"
-	"github.com/roushou/deepseek/internal/ssestream"
+	"github.com/roushou/deepseek/packages/ssestream"
 )
 
 type ChatsClient struct {

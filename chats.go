@@ -284,6 +284,15 @@ type CompletionResponse struct {
 	Object string `json:"object"`
 }
 
+// EstimateTokens estimates the tokens used for the completion according to the documentation https://api-docs.deepseek.com/quick_start/token_usage
+func (c CompletionResponse) EstimateTokens() int64 {
+	var tokens int64
+	for _, choice := range c.Choices {
+		tokens += estimateTokens(choice.Message.Content)
+	}
+	return tokens
+}
+
 type StreamCompletionChunk struct {
 	// ID is a unique identifier for the chat completion.
 	ID string `json:"id"`

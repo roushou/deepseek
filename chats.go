@@ -72,8 +72,8 @@ func NewCompletionRequest(model ModelID) CompletionArgs {
 	}
 }
 
-// NewCompletionRequest creates a new chat completion request with default values.
-func NewStreamCompletionRequest(model ModelID) StreamCompletionArgs {
+// NewStreamCompletionArgs creates new chat completion arguments with default values.
+func NewStreamCompletionArgs(model ModelID) StreamCompletionArgs {
 	return StreamCompletionArgs{
 		Model:            model,
 		Messages:         []Message{},

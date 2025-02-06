@@ -32,6 +32,7 @@ func main() {
 			},
 		},
 	})
+	defer stream.Close()
 
 	for stream.Next() {
 		fmt.Println(stream.Current().Choices[0].Delta.Content)
